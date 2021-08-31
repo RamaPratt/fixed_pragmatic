@@ -1,4 +1,9 @@
 class Movie < ApplicationRecord
+  scope :released, -> { where("released_on < ?", Time.now).order("released_on desc") }
+  scope :upcoming, -> { where("released_on > ?", Time.now).order("released_on asc") }
+  scope :recent, ->(max=5) { released.limit(max) }
+
+  before_save :set_slug
 
   has_many :reviews, dependent: :destroy
   has_many :favorites, dependent: :destroy
@@ -7,6 +12,7 @@ class Movie < ApplicationRecord
   has_many :genres, through: :characterizations
 
   validates :title, :released_on, :duration, presence: true
+  validates :title,  uniqueness: true
 
   validates :description, length: { minimum: 25 }
 
@@ -21,10 +27,6 @@ class Movie < ApplicationRecord
 
   validates :rating, inclusion: { in: RATINGS }
 
-  def self.released
-    where("released_on < ?", Time.now).order("released_on desc")
-  end
-
   def flop?
     total_gross.blank? || total_gross < 225_000_000
   end
@@ -35,5 +37,15 @@ class Movie < ApplicationRecord
 
   def average_stars_as_percent
     (self.average_stars / 5.0) * 100
+  end
+
+  def to_param
+    slug
+  end
+
+  private
+
+  def set_slug
+    self.slug = title.parameterize 
   end
 end
